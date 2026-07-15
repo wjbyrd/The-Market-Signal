@@ -4142,6 +4142,35 @@ function getWeakestBossObjective(bank){
     return weakestObjective || eligibleObjectives[Math.floor(Math.random() * eligibleObjectives.length)];
 }
 
+function getScaffoldedBossGroups(bank){
+    if(!Array.isArray(bank) || bank.length === 0) return [];
+
+    const groupedByObjective = {};
+
+    bank.forEach(question => {
+        const objective = getBossObjectiveKey(question);
+        if(!objective) return;
+
+        if(!groupedByObjective[objective]){
+            groupedByObjective[objective] = [];
+        }
+
+        groupedByObjective[objective].push(question);
+    });
+
+    const groups = [];
+
+    Object.values(groupedByObjective).forEach(objectiveQuestions => {
+        const sorted = [...objectiveQuestions].sort((a, b) => a.id - b.id);
+
+        for(let i = 0; i + 2 < sorted.length; i += 3){
+            groups.push(sorted.slice(i, i + 3));
+        }
+    });
+
+    return groups;
+}
+
 function getSelectionProfile(){
     const recent = getRecentPerformance(8);
     const strongestTag = getStrongestTag();
@@ -5970,58 +5999,50 @@ if (isBoss) {
         if(bank.length < 3){
             bank = [0, 1, 2].map(index => createTemplateQuestion(diff, index));
         }
-        let chosenObjective = getWeakestBossObjective(bank);
+        const chosenObjective = getWeakestBossObjective(bank);
 
         let candidatePool = chosenObjective
             ? bank.filter(q => getBossObjectiveKey(q) === chosenObjective)
             : [];
 
-        // Prefer unused questions inside the chosen objective.
-        let unusedCandidatePool = candidatePool.filter(q => {
-            if(!q) return false;
-            if(usedQuestions[diff] && usedQuestions[diff].includes(q.id)) return false;
-            return true;
-        });
-
-        if(unusedCandidatePool.length >= 3){
-            candidatePool = unusedCandidatePool;
-        }
-
-        // If the weakest objective cannot support a full boss set, use another objective with at least 3 questions.
-        if (candidatePool.length < 3) {
-            const eligibleObjectives = [...new Set(
-                bank.map(q => getBossObjectiveKey(q)).filter(Boolean)
-            )].filter(obj =>
-                bank.filter(q => getBossObjectiveKey(q) === obj).length >= 3
-            );
-
-            if(eligibleObjectives.length > 0){
-                const randomObjective = eligibleObjectives[Math.floor(Math.random() * eligibleObjectives.length)];
-                candidatePool = bank.filter(q => getBossObjectiveKey(q) === randomObjective);
-            }
-        }
-
-        // Last-resort fallback: use any unused questions from this difficulty.
-        if (candidatePool.length < 3) {
-            candidatePool = bank.filter(q => {
-                if (!q) return false;
-                if (usedQuestions[diff] && usedQuestions[diff].includes(q.id)) return false;
-                return true;
-            });
-        }
-
-        // If used-question filtering leaves too few, reset and use the whole bank.
-        if (candidatePool.length < 3) {
-            if (usedQuestions[diff]) usedQuestions[diff] = [];
+        if(candidatePool.length < 3){
             candidatePool = [...bank];
         }
 
-        if (diff === "legendaryBoss") {
-   		    bossPool = shuffle([...candidatePool]).slice(0, 3);
+        if(diff === "legendaryBoss"){
+            const unusedCandidates = candidatePool.filter(q =>
+                q && !(usedQuestions[diff] || []).includes(q.id)
+            );
+
+            const sourcePool = unusedCandidates.length >= 3
+                ? unusedCandidates
+                : candidatePool;
+
+            bossPool = shuffle([...sourcePool]).slice(0, 3);
         } else {
-            bossPool = [...candidatePool]
-                 .sort((a, b) => a.id - b.id)
-                 .slice(0, 3);
+            let groups = getScaffoldedBossGroups(candidatePool);
+
+            if(groups.length === 0){
+                groups = getScaffoldedBossGroups(bank);
+            }
+
+            const unusedGroups = groups.filter(group =>
+                group.every(q => !(usedQuestions[diff] || []).includes(q.id))
+            );
+
+            const availableGroups = unusedGroups.length > 0
+                ? unusedGroups
+                : groups;
+
+            if(availableGroups.length > 0){
+                bossPool = [...availableGroups[
+                    Math.floor(Math.random() * availableGroups.length)
+                ]];
+            } else {
+                bossPool = [...bank]
+                    .sort((a, b) => a.id - b.id)
+                    .slice(0, 3);
+            }
         }
 
         if (usedQuestions[diff]) {
@@ -8311,5 +8332,4 @@ function sendGameData(data) {
 
 </script></body>
 </html>
-
 
