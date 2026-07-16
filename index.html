@@ -4362,9 +4362,10 @@ function getRemediationQuestion(state){
             }
         }
 
-        const repairPool = microSkillRepairPools[state.skill] || [];
+        const allRepairPool = Object.values(microSkillRepairPools || {})
+            .reduce((all, pool) => all.concat(pool), []);
         const repairCandidates = getQuestionsMatchingNeed(
-            repairPool,
+            allRepairPool,
             state.objective,
             state.tag,
             excludeIds,
