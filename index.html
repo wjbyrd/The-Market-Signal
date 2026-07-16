@@ -53,6 +53,7 @@ If you break something:
 ===================================================== -->
 <html>
 <head>
+<meta charset="UTF-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <!-- Title can be changed to whatever the game needs -->
 <title>The Market Signal</title>
@@ -3069,7 +3070,7 @@ let runID = "";
 let questionStartTime = 0;
 let streak = 0; 
 let startTime; // Will be set in startGame()
-let room = localStorage.getItem("gauntletRoom") ? parseInt(localStorage.getItem("gauntletRoom")) : 1;
+let room = localStorage.getItem("marketSignalRoom") ? parseInt(localStorage.getItem("marketSignalRoom")) : 1;
 let currentQuestion = null;
 let detourActive = false;
 let detourReturnRoom = null;
@@ -3236,25 +3237,6 @@ function updateMissionArtifactCountFromVault(){
         .filter(key => localStorage.getItem(key) === "true").length;
 
     setMissionArtifactCount(artifactCount);
-}
-
-function recordTimedTrialAchievementStats(accuracy, reachedRoom){
-    const safeAccuracy = Number.isFinite(Number(accuracy)) ? Number(accuracy) : 0;
-    const safeRoom = Number.isFinite(Number(reachedRoom)) ? Number(reachedRoom) : 0;
-
-    updateRealmMaxStat("marketSignalTimedBestRoom", safeRoom);
-    updateRealmMaxStat("marketSignalTimedBestAccuracy", safeAccuracy);
-
-    updateRealmMaxStat("managerialHub_timedBestRoom", safeRoom);
-    updateRealmMaxStat("managerialHub_timedBestAccuracy", safeAccuracy);
-
-    updateRealmMaxStat(`${getMissionAchievementPrefix()}_timedBestRoom`, safeRoom);
-    updateRealmMaxStat(`${getMissionAchievementPrefix()}_timedBestAccuracy`, safeAccuracy);
-
-    if(safeRoom >= 30 && safeAccuracy >= 80){
-        setRealmFlag(MACRO_TRIAL_BY_CLOCK_KEY);
-        setRealmFlag(`${getMissionAchievementPrefix()}_trial_by_clock_complete`);
-    }
 }
 
 function recordMacroCorrectAnswer(){
@@ -3533,7 +3515,7 @@ function saveGameState(){
     };
 
     localStorage.setItem(getSaveKey(), JSON.stringify(saveData));
-    localStorage.setItem("gauntletRoom", String(room));
+    localStorage.setItem("marketSignalRoom", String(room));
 
     if(modeAllowsRealmProgress()){
 	    localStorage.setItem(REALM_STARTED_KEY, "true");
@@ -3596,7 +3578,7 @@ function clearSavedGame(){
     localStorage.removeItem(getSaveKey());
 
     if(modeAllowsSave()){
-        localStorage.removeItem("gauntletRoom");
+        localStorage.removeItem("marketSignalRoom");
         localStorage.removeItem("vaultCapitalKey");
         localStorage.removeItem("vaultRiskPrism");
         localStorage.removeItem("vaultMarketMap");
@@ -4999,7 +4981,7 @@ if(!hasSavedRun){
     bossesDefeatedThisRun = 0;
 
     if(modeAllowsSave()){
-        localStorage.removeItem("gauntletRoom");
+        localStorage.removeItem("marketSignalRoom");
 	    localStorage.removeItem("vaultCapitalKey");
 	    localStorage.removeItem("vaultRiskPrism");
 	    localStorage.removeItem("vaultMarketMap");
@@ -6558,7 +6540,7 @@ recordAdaptiveAttempt(currentQuestion, isCorrect, responseTime);
         `<span class='fade-out-text'>${getRecoveryLine("complete")}</span>`;
 
     room = returnRoom;
-    localStorage.setItem("gauntletRoom", room);
+    localStorage.setItem("marketSignalRoom", room);
 
     setTimeout(loadQuestion, TIMING.normal);
     return;
@@ -6610,10 +6592,6 @@ recordAdaptiveAttempt(currentQuestion, isCorrect, responseTime);
            
          bossPool = [];
 
-		 if(gameMode === "standard"){
-         bossesDefeatedThisRun++;
-         }
-           
        // Boss defeated — Market Signal boss artifacts
     if(modeAllowsRealmProgress()){
     if(room === 10){
@@ -6649,7 +6627,7 @@ recordAdaptiveAttempt(currentQuestion, isCorrect, responseTime);
    room++;
    timedHighestRoom = Math.max(timedHighestRoom, Math.min(room, 30));
    saveGameState();
-   localStorage.setItem("gauntletRoom", room);
+   localStorage.setItem("marketSignalRoom", room);
 
    if(gameMode === "timed" && timedModeEndTime && Date.now() >= timedModeEndTime){
        endTimedModeRun();
@@ -6775,7 +6753,7 @@ room = Math.max(bossCheckpoint, newRoom);
 
 if(gameMode === "timed") timedSetbacks++;
 
-localStorage.setItem("gauntletRoom", room);
+localStorage.setItem("marketSignalRoom", room);
 	
 showGameModal({
     title: "Wrong Turn",
@@ -7121,61 +7099,6 @@ function handleLegendaryVictory(){
     document.getElementById("message").innerText = "Legendary completion saved separately. Standard market signal progress was not changed.";
 }
 
-function handlePracticeModeComplete(){
-    stopTimedModeClock();
-
-    const accuracy = totalAttempts > 0
-        ? Math.round((correctAnswers / totalAttempts) * 100)
-        : 0;
-
-if(gameMode === "exam"){
-    markExamDrillCompleted();
-}
-
-    sendGameData({
-        runID: runID,
-        game: "The Market Signal",
-        event: `${gameMode}_complete`,
-        user: username,
-        email: studentEmail,
-        room: room,
-        questionId: 0,
-        correct: 1,
-        tag: "",
-        type: "",
-        objective: "",
-        responseTime: 0,
-        attempt: totalAttempts,
-        streak: streak,
-        elapsedTime: startTime ? (Date.now() - startTime) : 0,
-        adaptiveMode: `${gameMode}_complete`,
-        totalTime: startTime ? (Date.now() - startTime) : 0,
-        accuracy: accuracy / 100,
-        maxStreak: maxStreak,
-        totalAttempts: totalAttempts
-    });
-
-    document.getElementById("bossMessage").innerText = "";
-    document.getElementById("formulaHint").innerText = "";
-    document.getElementById("artifactDrop").style.display = "none";
-
-    document.getElementById("question").innerHTML = `
-        <span class="boss-title">${getModeDisplayName().toUpperCase()} COMPLETE</span>
-        <div class="boss-q">
-            You reached the end of this practice path.<br><br>
-            Accuracy: ${accuracy}%<br>
-            Total Attempts: ${totalAttempts}<br>
-            Best Streak: ${maxStreak}
-        </div>
-    `;
-
-    document.getElementById("answers").innerHTML = `
-        <button class="continue-btn" onclick="showMasteryReportScreen()">View Mastery Report</button>
-        <button class="continue-btn" onclick="returnToModeSelectFromRun()">Choose Another Market Test</button>
-    `;
-
-    document.getElementById("message").innerText = "Practice complete. Standard market progress was not changed.";
-}
 
 // =============================================
 // COMPLETION CODE GENERATOR — DO NOT MODIFY
@@ -7211,17 +7134,6 @@ if(gameMode === "exam"){
 // This is NOT encryption.
 // It is a lightweight integrity check.
 // =============================================
-function generateCode(name, acc, streak, total){
-    let str = `${name}|${acc}|${streak}|${total}|SIGNAL01`;
-    let hash = 0;
-
-    for(let i = 0; i < str.length; i++){
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash |= 0;
-    }
-
-    return "SIGNAL-" + Math.abs(hash).toString(36).toUpperCase();
-} 
 
 // =============================================
 // VICTORY SCREEN — PARTIAL CUSTOMIZATION ZONE
